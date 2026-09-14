@@ -1,3 +1,21 @@
 language: node_js
 node_js:
 - '0.10'
+before_install:
+# The QUnit suite in test/ only runs in a browser, and its ajax fixtures are
+# PHP scripts, so CI needs both a headless browser and an Apache/PHP docroot.
+- sudo apt-get update -qq
+- sudo apt-get install -y -qq apache2 libapache2-mod-php fontconfig
+- curl -sSL -o /tmp/phantomjs.tar.bz2 https://github.com/Medium/phantomjs/releases/download/v1.9.19/phantomjs-1.9.8-linux-x86_64.tar.bz2
+- tar -xjf /tmp/phantomjs.tar.bz2 -C /tmp
+- sudo cp /tmp/phantomjs-1.9.8-linux-x86_64/bin/phantomjs /usr/local/bin/phantomjs
+- phantomjs --version
+script:
+# Lint, plus the dist build that the test page loads.
+- npm test
+# Serve the built tree so test/data/*.php runs as PHP.
+- sudo cp -r "$TRAVIS_BUILD_DIR"/. /var/www/html/
+- sudo chmod -R a+rX /var/www/html
+- sudo service apache2 restart
+- curl -sSf -o /dev/null http://127.0.0.1/test/index.html
+- phantomjs .github/run-qunit.js "http://127.0.0.1/test/index.html?dev"

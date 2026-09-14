@@ -1,0 +1,39 @@
+name: build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  pack:
+    name: Pack npm tarball
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # dist/ is committed at the release tag and cannot be regenerated here
+      # (the 0.10-era grunt toolchain does not install on a modern Node), so
+      # parse the shipped bundles to catch any breakage in them.
+      - name: Syntax-check the committed dist bundles
+        run: |
+          node --check dist/jquery.js
+          node --check dist/jquery.min.js
+
+      # dist/ is committed at the release tag; the release harness adds the
+      # dist/cdn copies on top before publishing. No dependency install is
+      # needed to pack.
+      - name: Generate dist/cdn release copies
+        run: node .github/cdn-copies.js
+
+      - name: Pack
+        run: npm pack
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: npm-tarball
+          path: jquery-*.tgz
+          if-no-files-found: error
