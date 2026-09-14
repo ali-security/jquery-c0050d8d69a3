@@ -1103,6 +1103,34 @@ test("jQuery.extend(Object, Object)", function() {
 	deepEqual( options2, options2Copy, "Check if not modified: options2 must not be modified" );
 });
 
+test("jQuery.extend( true, ... ) Object.prototype pollution", function() {
+	expect( 4 );
+
+	var key,
+		keys = [],
+		payload = JSON.parse( "{\"__proto__\": {\"devMode\": true}}" ),
+		nestedPayload = JSON.parse( "{\"deep\": {\"__proto__\": {\"devMode2\": true}}}" );
+
+	// Make sure the payload really carries an own, enumerable "__proto__"
+	// key, otherwise the pollution path below wouldn't be exercised at all
+	for ( key in payload ) {
+		keys.push( key );
+	}
+	deepEqual( keys, [ "__proto__" ], "JSON.parse exposes an enumerable __proto__ property" );
+
+	jQuery.extend( true, {}, payload );
+	ok( !( "devMode" in {} ), "Object.prototype not polluted" );
+
+	jQuery.extend( true, {}, nestedPayload );
+	ok( !( "devMode2" in {} ), "Object.prototype not polluted through a nested __proto__" );
+
+	deepEqual(
+		jQuery.extend( true, { "a": 1 }, JSON.parse( "{\"__proto__\": {\"b\": 2}, \"c\": 3}" ) ),
+		{ "a": 1, "c": 3 },
+		"__proto__ is skipped while the remaining properties are still merged"
+	);
+});
+
 test("jQuery.each(Object,Function)", function() {
 	expect( 23 );
 
